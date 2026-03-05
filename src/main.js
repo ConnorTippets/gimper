@@ -12,12 +12,13 @@ class XCF {
         const reader = new DataView(bytes.buffer, 13);
         const cursor = 0;
 
+        // All .xcf's start with "gimp xcf "
         const header = bytes.slice(0, 9);
         if (header.compare(XCF.header) !== 0) {
             throw Error("Invalid XCF");
         }
 
-// Immediately following is the version.
+        // Immediately following is the version.
         // Version 0 is "file", all others are "vXXX".
         const raw_ver = new TextDecoder().decode(bytes.slice(9, 13));
         let version = 0;
