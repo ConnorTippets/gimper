@@ -1,5 +1,5 @@
 class XCF {
-/**
+    /**
      * XCF file version
      * @type {Number}
      */
@@ -16,6 +16,12 @@ class XCF {
      * @type {Number}
      */
     height;
+
+    /**
+     * Canvas height
+     * @type {Number}
+     */
+    color_mode;
 
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
 
