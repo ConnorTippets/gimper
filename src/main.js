@@ -18,7 +18,7 @@ class XCF {
     height;
 
     /**
-     * Canvas height
+     * Image color mode
      * @type {Number}
      */
     color_mode;
