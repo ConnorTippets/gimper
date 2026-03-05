@@ -29,6 +29,21 @@ class XCF {
      */
     precision;
 
+    /**
+     * @param {Number} version - XCF file version
+     * @param {Number} width - Canvas width
+     * @param {Number} height - Canvas height
+     * @param {Number} color_mode - Image color mode
+     * @param {Number} precision - Image precision
+     */
+    constructor(version, width, height, color_mode, precision) {
+        this.version = version;
+        this.width = width;
+        this.height = height;
+        this.color_mode = color_mode;
+        this.precision = precision;
+    };
+
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
 
     /**
@@ -55,18 +70,12 @@ class XCF {
             version = parseInt(raw_ver.slice(1));
         }
 
-        console.log(version);
-
         const width = reader.getUint32();
         const height = reader.getUint32(cursor + 4);
         cursor += 8;
 
-        console.log(`${width}x${height}`);
-
         const color_mode = reader.getUint32(cursor);
         cursor += 4;
-
-        console.log(color_mode);
 
         let precision;
         if (version >= 4) {
@@ -74,13 +83,13 @@ class XCF {
             cursor += 4;
         }
 
-        console.log(precision);
+        return new this(version, width, height, color_mode, precision);
     };
 }
 
 class XCFConverter {
     static async to_png(bytes) {
-        XCF.from_bytes(bytes);
+        console.log(await XCF.from_bytes(bytes));
     };
 }
 
