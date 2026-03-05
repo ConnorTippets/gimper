@@ -1,3 +1,25 @@
+class Reader {
+    /**
+     * Internal reader
+     * @type {DataView}
+     */
+    r;
+
+    /**
+     * Cursor
+     * @type {Number}
+     */
+    cursor;
+
+    /**
+     * @param {DataView} r - Internal reader
+     */
+    constructor(r) {
+        this.r = r;
+        this.cursor = 0;
+    }
+}
+
 class XCF {
     /**
      * XCF file version
@@ -52,8 +74,7 @@ class XCF {
      * @returns {XCF} - Parsed XCF
      */
     static async from_bytes(bytes) {
-        const reader = new DataView(bytes.buffer, 14); // +1 to skip extra 0
-        let cursor = 0;
+        const reader = new Reader(new DataView(bytes.buffer, 14)); // +1 to skip extra 0
 
         // All .xcf's start with "gimp xcf "
         const header = bytes.slice(0, 9);
@@ -70,17 +91,17 @@ class XCF {
             version = parseInt(raw_ver.slice(1));
         }
 
-        const width = reader.getUint32();
-        const height = reader.getUint32(cursor + 4);
-        cursor += 8;
+        const width = reader.r.getUint32();
+        const height = reader.r.getUint32(reader.cursor + 4);
+        reader.cursor += 8;
 
-        const color_mode = reader.getUint32(cursor);
-        cursor += 4;
+        const color_mode = reader.r.getUint32(reader.cursor);
+        reader.cursor += 4;
 
         let precision;
         if (version >= 4) {
-            precision = reader.getUint32(cursor);
-            cursor += 4;
+            precision = reader.r.getUint32(reader.cursor);
+            reader.cursor += 4;
         }
 
         return new this(version, width, height, color_mode, precision);
