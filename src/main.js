@@ -9,8 +9,8 @@ class XCF {
      * @returns {XCF} - Parsed XCF
      */
     static async from_bytes(bytes) {
-        const reader = new DataView(bytes.buffer, 13);
-        const cursor = 0;
+        const reader = new DataView(bytes.buffer, 14); // +1 to skip extra 0
+        let cursor = 0;
 
         // All .xcf's start with "gimp xcf "
         const header = bytes.slice(0, 9);
@@ -28,6 +28,12 @@ class XCF {
         }
 
         console.log(version);
+
+        const width = reader.getUint32();
+        const height = reader.getUint32(cursor + 4);
+        cursor += 8;
+
+        console.log(`${width}x${height}`);
     };
 }
 
