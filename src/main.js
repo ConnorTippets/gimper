@@ -1,4 +1,8 @@
 class XCF {
+/**
+     * XCF file version
+     * @type {Number}
+     */
     version;
 
     /**
