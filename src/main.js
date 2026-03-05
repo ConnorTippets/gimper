@@ -68,8 +68,11 @@ class XCF {
 
         console.log(color_mode);
 
-        const precision = reader.getUint32(cursor);
-        cursor += 4;
+        let precision;
+        if (version >= 4) {
+            precision = reader.getUint32(cursor);
+            cursor += 4;
+        }
 
         console.log(precision);
     };
