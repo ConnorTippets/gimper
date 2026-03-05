@@ -17,7 +17,16 @@ class XCF {
             throw Error("Invalid XCF");
         }
 
-        console.log("good job, valid xcf");
+// Immediately following is the version.
+        // Version 0 is "file", all others are "vXXX".
+        const raw_ver = new TextDecoder().decode(bytes.slice(9, 13));
+        let version = 0;
+
+        if (raw_ver !== "file") {
+            version = parseInt(raw_ver.slice(1));
+        }
+
+        console.log(version);
     };
 }
 
