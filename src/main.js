@@ -23,6 +23,12 @@ class XCF {
      */
     color_mode;
 
+    /**
+     * Image precision
+     * @type {number}
+     */
+    precision;
+
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
 
     /**
@@ -61,6 +67,11 @@ class XCF {
         cursor += 4;
 
         console.log(color_mode);
+
+        const precision = reader.getUint32(cursor);
+        cursor += 4;
+
+        console.log(precision);
     };
 }
 
