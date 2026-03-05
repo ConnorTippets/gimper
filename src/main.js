@@ -34,6 +34,11 @@ class XCF {
         cursor += 8;
 
         console.log(`${width}x${height}`);
+
+        const color_mode = reader.getUint32(cursor);
+        cursor += 4;
+
+        console.log(color_mode);
     };
 }
 
