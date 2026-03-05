@@ -1,6 +1,18 @@
 class XCF {
     version;
 
+    /**
+     * Canvas width
+     * @type {Number}
+     */
+    width;
+
+    /**
+     * Canvas height
+     * @type {Number}
+     */
+    height;
+
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
 
     /**
