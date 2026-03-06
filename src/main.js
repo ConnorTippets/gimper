@@ -1,5 +1,11 @@
 class Reader {
     /**
+     * Underlying data
+     * @type {ArrayBuffer}
+     */
+    bytes;
+
+    /**
      * Internal reader
      * @type {DataView}
      */
@@ -16,6 +22,7 @@ class Reader {
      */
     constructor(r) {
         this.r = r;
+        this.bytes = r.buffer;
         this.cursor = 0;
     }
 
@@ -26,6 +33,27 @@ class Reader {
     getUint32AndAdvance() {
         this.cursor += 4;
         return this.r.getUint32(this.cursor - 4);
+    }
+
+    /**
+     * Get any amount of bytes
+     * @param {Number} amt - How many bytes to get
+     * @returns {ArrayBuffer} Returned buffer
+     */
+    getArbitraryBytesAsBuffer(amt) {
+        const cur_pos = this.r.byteOffset + this.cursor;
+        return this.bytes.slice(cur_pos, cur_pos + amt);
+    }
+
+    /**
+     * Get any amount of bytes and advance
+     * @param {Number} amt - How many bytes to get
+     * @returns {ArrayBuffer} Returned buffer
+     */
+    getArbitraryBytesAsBufferAndAdvance(amt) {
+        const data = this.getArbitraryBytesAsBuffer(amt);
+        this.cursor += amt;
+        return data;
     }
 }
 
