@@ -1,3 +1,26 @@
+class Property {
+    /**
+     * Specific property type
+     * @type {Number}
+     */
+    type;
+
+    /**
+     * Underlying data
+     * @type {ArrayBuffer}
+     */
+    bytes;
+
+    /**
+     * @param {Number} type - Specific property type
+     * @param {ArrayBuffer} bytes - Underlying data
+     */
+    constructor(type, bytes) {
+        this.type = type;
+        this.bytes = bytes;
+    }
+}
+
 class Reader {
     /**
      * Underlying data
@@ -89,18 +112,26 @@ class XCF {
     precision;
 
     /**
+     * Image properties
+     * @type {ArrayBuffer[]}
+     */
+    properties;
+
+    /**
      * @param {Number} version - XCF file version
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
      * @param {Number} color_mode - Image color mode
      * @param {Number} precision - Image precision
+     * @param {ArrayBuffer[]} properties - Image properties
      */
-    constructor(version, width, height, color_mode, precision) {
+    constructor(version, width, height, color_mode, precision, properties) {
         this.version = version;
         this.width = width;
         this.height = height;
         this.color_mode = color_mode;
         this.precision = precision;
+        this.properties = properties;
     };
 
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
@@ -138,7 +169,21 @@ class XCF {
             precision = reader.getUint32AndAdvance();
         }
 
-        return new this(version, width, height, color_mode, precision);
+        // List of image properties is next
+        let properties = [];
+        while (true) {
+            const type = reader.getUint32AndAdvance();
+            const length = reader.getUint32AndAdvance();
+
+            if (type === 0 && length === 0) { // End of list
+                break;
+            }
+
+            const data = reader.getArbitraryBytesAsBufferAndAdvance(length);
+            properties.push(new Property(type, data));
+        };
+
+        return new this(version, width, height, color_mode, precision, properties);
     };
 }
 
