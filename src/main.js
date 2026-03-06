@@ -1,3 +1,27 @@
+class Layer {
+    /**
+     * Underlying data
+     * @type {ArrayBuffer}
+     */
+    bytes;
+
+    /**
+     * @param {ArrayBuffer} bytes - Underlying data
+     */
+    constructor(bytes) {
+        this.bytes = bytes;
+    }
+
+    /**
+     * Read layer from bytes
+     * @param {Reader} reader - Reader seeked to beginning of layer
+     * @returns {Layer} - Parsed layer
+     */
+    static async from_bytes(reader) {
+        // TODO: Implement
+    }
+}
+
 class Property {
     /**
      * Specific property type
@@ -50,12 +74,45 @@ class Reader {
     }
 
     /**
+     * Convert cursor-relative offset to absolute
+     * @param {Number} offset - Cursor-relative offset
+     */
+    relToStart(offset) {
+        let byteOffset = this.r.byteOffset;
+        if (typeof offset === "bigint") {
+            byteOffset = BigInt(byteOffset);
+        }
+        return offset + byteOffset;
+    }
+
+    /**
+     * Move to byte from beginning of data
+     * @param {Number} offset - Offset to move to
+     */
+    seek(offset) {
+        let byteOffset = this.r.byteOffset;
+        if (typeof offset === "bigint") {
+            byteOffset = BigInt(byteOffset);
+        }
+        this.cursor = offset - byteOffset;
+    }
+
+    /**
      * Get a uint32 and advance 4 bytes
      * @returns {Number} Parsed uint32
      */
     getUint32AndAdvance() {
         this.cursor += 4;
         return this.r.getUint32(this.cursor - 4);
+    }
+
+    /**
+     * Get a uint64 and advance 8 bytes
+     * @returns {BigInt} Parsed uint64
+     */
+    getUint64AndAdvance() {
+        this.cursor += 8;
+        return this.r.getBigUint64(this.cursor - 8);
     }
 
     /**
@@ -118,20 +175,28 @@ class XCF {
     properties;
 
     /**
+     * Layers
+     * @type {Layer[]}
+     */
+    layers;
+
+    /**
      * @param {Number} version - XCF file version
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
      * @param {Number} color_mode - Image color mode
      * @param {Number} precision - Image precision
      * @param {Property[]} properties - Image properties
+     * @param {Layer[]} layers - Layers
      */
-    constructor(version, width, height, color_mode, precision, properties) {
+    constructor(version, width, height, color_mode, precision, properties, layers) {
         this.version = version;
         this.width = width;
         this.height = height;
         this.color_mode = color_mode;
         this.precision = precision;
         this.properties = properties;
+        this.layers = layers;
     };
 
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
@@ -183,7 +248,31 @@ class XCF {
             properties.push(new Property(type, data));
         };
 
-        return new this(version, width, height, color_mode, precision, properties);
+        let layers = [];
+        let k = 0;
+        while (true) {
+            let pointer;
+            if (version < 11) {
+                pointer = reader.getUint32AndAdvance();
+            } else {
+                pointer = reader.getUint64AndAdvance();
+            }
+            console.log(`${k} ${pointer}`);
+
+            if (pointer === BigInt(0)) {
+                break;
+            }
+
+            const cur_pos = reader.relToStart(reader.cursor);
+            reader.seek(pointer);
+            const layer = await Layer.from_bytes(reader);
+            reader.seek(cur_pos);
+
+            layers.push(layer);
+            k++;
+        }
+
+        return new this(version, width, height, color_mode, precision, properties, layers);
     };
 }
 
