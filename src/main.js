@@ -1,24 +1,125 @@
 class Layer {
     /**
-     * Underlying data
-     * @type {ArrayBuffer}
+     * Canvas width
+     * @type {Number}
      */
-    bytes;
+    width;
 
     /**
-     * @param {ArrayBuffer} bytes - Underlying data
+     * Canvas height
+     * @type {Number}
      */
-    constructor(bytes) {
-        this.bytes = bytes;
+    height;
+
+    /**
+     * Layer type
+     * @type {Number}
+     */
+    type;
+
+    /**
+     * Layer name
+     * @type {String}
+     */
+    name;
+
+    /**
+     * Layer properties
+     * @type {Property[]}
+     */
+    properties
+
+    /**
+     * Hierarchy structure
+     * @type {number}
+     */
+    hierarchy;
+
+    /**
+     * Layer mask
+     * @type {number}
+     */
+    mask;
+
+    /**
+     * Layer effects
+     * @type {number[]}
+     */
+    effects;
+
+    /**
+     * @param {Number} width - Canvas width
+     * @param {Number} height - Canvas height
+     * @param {Number} type - Layer type
+     * @param {String} name - Layer name
+     * @param {Property[]} properties - Layer properties
+     * @param {Number} hierarchy - Hierarchy structure
+     * @param {Number} mask - Layer mask
+     * @param {Number[]} effects - Layer effects
+     */
+    constructor(width, height, type, name, properties, hierarchy, mask, effects) {
+        this.width = width;
+        this.height = height;
+        this.type = type;
+        this.name = name;
+        this.properties = properties;
+        this.hierarchy = hierarchy;
+        this.mask = mask;
+        this.effects = effects;
     }
 
     /**
      * Read layer from bytes
      * @param {Reader} reader - Reader seeked to beginning of layer
+     * @param {Number} version - XCF version for pointers
      * @returns {Layer} - Parsed layer
      */
-    static async from_bytes(reader) {
-        // TODO: Implement
+    static async from_bytes(reader, version) {
+        const width = reader.getUint32AndAdvance();
+        const height = reader.getUint32AndAdvance();
+        const type = reader.getUint32AndAdvance();
+        const name = reader.getString();
+
+        let properties = [];
+        while (true) {
+            const type = reader.getUint32AndAdvance();
+            const length = reader.getUint32AndAdvance();
+
+            if (type === 0 && length === 0) { // End of list
+                break;
+            }
+
+            const data = reader.getArbitraryBytesAsBufferAndAdvance(length);
+            properties.push(new Property(type, data));
+        };
+
+        let hptr;
+        let mptr;
+        if (version < 11) {
+            hptr = reader.getUint32AndAdvance();
+            mptr = reader.getUint32AndAdvance();
+        } else {
+            hptr = reader.getUint64AndAdvance();
+            mptr = reader.getUint64AndAdvance();
+        }
+
+        let effects = [];
+        while (true) {
+            let pointer;
+            if (version < 11) {
+                pointer = reader.getUint32AndAdvance();
+            } else {
+                pointer = reader.getUint64AndAdvance();
+            }
+
+            if (pointer === 0) {
+                break;
+            }
+
+            effects.push(pointer);
+        }
+
+        return new this(width, height, type, name, properties, hptr, mptr, effects);
     }
 }
 
@@ -78,11 +179,7 @@ class Reader {
      * @param {Number} offset - Cursor-relative offset
      */
     relToStart(offset) {
-        let byteOffset = this.r.byteOffset;
-        if (typeof offset === "bigint") {
-            byteOffset = BigInt(byteOffset);
-        }
-        return offset + byteOffset;
+        return offset + this.r.byteOffset;
     }
 
     /**
@@ -90,11 +187,7 @@ class Reader {
      * @param {Number} offset - Offset to move to
      */
     seek(offset) {
-        let byteOffset = this.r.byteOffset;
-        if (typeof offset === "bigint") {
-            byteOffset = BigInt(byteOffset);
-        }
-        this.cursor = offset - byteOffset;
+        this.cursor = offset - this.r.byteOffset;
     }
 
     /**
@@ -108,11 +201,11 @@ class Reader {
 
     /**
      * Get a uint64 and advance 8 bytes
-     * @returns {BigInt} Parsed uint64
+     * @returns {Number} Parsed uint64
      */
     getUint64AndAdvance() {
         this.cursor += 8;
-        return this.r.getBigUint64(this.cursor - 8);
+        return Number(this.r.getBigUint64(this.cursor - 8));
     }
 
     /**
@@ -134,6 +227,16 @@ class Reader {
         const data = this.getArbitraryBytesAsBuffer(amt);
         this.cursor += amt;
         return data;
+    }
+
+    /**
+     * Get a string
+     * @returns {string} Returned string
+     */
+    getString() {
+        const length = this.getUint32AndAdvance();
+        const data = this.getArbitraryBytesAsBufferAndAdvance(length);
+        return new TextDecoder().decode(data.slice(0, -1));
     }
 }
 
@@ -249,7 +352,6 @@ class XCF {
         };
 
         let layers = [];
-        let k = 0;
         while (true) {
             let pointer;
             if (version < 11) {
@@ -257,19 +359,17 @@ class XCF {
             } else {
                 pointer = reader.getUint64AndAdvance();
             }
-            console.log(`${k} ${pointer}`);
 
-            if (pointer === BigInt(0)) {
+            if (pointer === 0) {
                 break;
             }
 
             const cur_pos = reader.relToStart(reader.cursor);
             reader.seek(pointer);
-            const layer = await Layer.from_bytes(reader);
+            const layer = await Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
 
             layers.push(layer);
-            k++;
         }
 
         return new this(version, width, height, color_mode, precision, properties, layers);
