@@ -1,3 +1,63 @@
+class Level {
+    /**
+     * Canvas width
+     * @type {Number}
+     */
+    width;
+
+    /**
+     * Canvas height
+     * @type {Number}
+     */
+    height;
+
+    /**
+     * Pixel tiles
+     * @type {Number[]}
+     */
+    tiles;
+
+    /**
+     * @param {Number} width - Canvas width
+     * @param {Number} height - Canvas height
+     * @param {Number[]} tiles - Pixel tiles 
+     */
+    constructor(width, height, tiles) {
+        this.width = width;
+        this.height = height;
+        this.tiles = tiles;
+    }
+
+    /**
+     * Read level from bytes
+     * @param {Reader} reader - Reader seeked to beginning of level
+     * @param {Number} version - XCF version for pointers
+     * @returns {Level} - Parsed level
+     */
+    static async from_bytes(reader, version) {
+        const width = reader.getUint32AndAdvance();
+        const height = reader.getUint32AndAdvance();
+
+        let tiles = [];
+        while (true) {
+            let pointer;
+            if (version < 11) {
+                pointer = reader.getUint32AndAdvance();
+            } else {
+                pointer = reader.getUint64AndAdvance();
+            }
+
+            if (pointer === 0) {
+                break;
+            }
+
+            tiles.push(pointer);
+        }
+
+        return new this(width, height, tiles);
+    }
+}
+
 class PixelHierarchy {
     /**
      * Canvas width
@@ -19,7 +79,7 @@ class PixelHierarchy {
 
     /**
      * Level structure
-     * @type {Number}
+     * @type {Level}
      */
     level;
 
@@ -27,7 +87,7 @@ class PixelHierarchy {
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
      * @param {Number} bpp - Bits per pixel
-     * @param {Number} level - Level structure
+     * @param {Level} level - Level structure
      */
     constructor(width, height, bpp, level) {
         this.width = width;
@@ -38,9 +98,9 @@ class PixelHierarchy {
 
     /**
      * Read hierarchy from bytes
-     * @param {Reader} reader - Reader seeked to beginning of layer
+     * @param {Reader} reader - Reader seeked to beginning of hierarchy
      * @param {Number} version - XCF version for pointers
-     * @returns {PixelHierarchy} - Parsed layer
+     * @returns {PixelHierarchy} - Parsed hierarchy
      */
     static async from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
@@ -53,6 +113,11 @@ class PixelHierarchy {
         } else {
             lptr = reader.getUint64AndAdvance();
         }
+
+        const cur_pos = reader.relToStart(reader.cursor);
+        reader.seek(lptr);
+        const level = await Level.from_bytes(reader, version);
+        reader.seek(cur_pos);
 
         while (true) {
             let pointer;
@@ -67,7 +132,7 @@ class PixelHierarchy {
             }
         }
 
-        return new this(width, height, bpp, lptr);
+        return new this(width, height, bpp, level);
     }
 }
 
@@ -104,7 +169,7 @@ class Layer {
 
     /**
      * Hierarchy structure
-     * @type {number}
+     * @type {PixelHierarchy}
      */
     hierarchy;
 
@@ -126,7 +191,7 @@ class Layer {
      * @param {Number} type - Layer type
      * @param {String} name - Layer name
      * @param {Property[]} properties - Layer properties
-     * @param {Number} hierarchy - Hierarchy structure
+     * @param {PixelHierarchy} hierarchy - Hierarchy structure
      * @param {Number} mask - Layer mask
      * @param {Number[]} effects - Layer effects
      */
