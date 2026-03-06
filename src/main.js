@@ -113,7 +113,7 @@ class XCF {
 
     /**
      * Image properties
-     * @type {ArrayBuffer[]}
+     * @type {Property[]}
      */
     properties;
 
@@ -123,7 +123,7 @@ class XCF {
      * @param {Number} height - Canvas height
      * @param {Number} color_mode - Image color mode
      * @param {Number} precision - Image precision
-     * @param {ArrayBuffer[]} properties - Image properties
+     * @param {Property[]} properties - Image properties
      */
     constructor(version, width, height, color_mode, precision, properties) {
         this.version = version;
