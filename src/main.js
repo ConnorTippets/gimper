@@ -1,3 +1,76 @@
+class PixelHierarchy {
+    /**
+     * Canvas width
+     * @type {Number}
+     */
+    width;
+
+    /**
+     * Canvas height
+     * @type {Number}
+     */
+    height;
+
+    /**
+     * Bits per pixel
+     * @type {Number}
+     */
+    bpp;
+
+    /**
+     * Level structure
+     * @type {Number}
+     */
+    level;
+
+    /**
+     * @param {Number} width - Canvas width
+     * @param {Number} height - Canvas height
+     * @param {Number} bpp - Bits per pixel
+     * @param {Number} level - Level structure
+     */
+    constructor(width, height, bpp, level) {
+        this.width = width;
+        this.height = height;
+        this.bpp = bpp;
+        this.level = level;
+    }
+
+    /**
+     * Read hierarchy from bytes
+     * @param {Reader} reader - Reader seeked to beginning of layer
+     * @param {Number} version - XCF version for pointers
+     * @returns {PixelHierarchy} - Parsed layer
+     */
+    static async from_bytes(reader, version) {
+        const width = reader.getUint32AndAdvance();
+        const height = reader.getUint32AndAdvance();
+        const bpp = reader.getUint32AndAdvance();
+
+        let lptr;
+        if (version < 11) {
+            lptr = reader.getUint32AndAdvance();
+        } else {
+            lptr = reader.getUint64AndAdvance();
+        }
+
+        while (true) {
+            let pointer;
+            if (version < 11) {
+                pointer = reader.getUint32AndAdvance();
+            } else {
+                pointer = reader.getUint64AndAdvance();
+            }
+
+            if (pointer === 0) {
+                break;
+            }
+        }
+
+        return new this(width, height, bpp, lptr);
+    }
+}
+
 class Layer {
     /**
      * Canvas width
@@ -103,6 +176,11 @@ class Layer {
             mptr = reader.getUint64AndAdvance();
         }
 
+        const cur_pos = reader.relToStart(reader.cursor);
+        reader.seek(hptr);
+        const hierarchy = await PixelHierarchy.from_bytes(reader, version);
+        reader.seek(cur_pos);
+
         let effects = [];
         while (true) {
             let pointer;
@@ -119,7 +197,7 @@ class Layer {
             effects.push(pointer);
         }
 
-        return new this(width, height, type, name, properties, hptr, mptr, effects);
+        return new this(width, height, type, name, properties, hierarchy, mptr, effects);
     }
 }
 
@@ -378,7 +456,7 @@ class XCF {
 
 class XCFConverter {
     static async to_png(bytes) {
-        console.log(await XCF.from_bytes(bytes));
+        console.log((await XCF.from_bytes(bytes)).layers[0].hierarchy);
     };
 }
 
