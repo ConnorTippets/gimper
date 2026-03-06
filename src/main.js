@@ -1,3 +1,9 @@
+class Tile {
+    static async from_bytes() {
+        // TODO: Implement
+    }
+}
+
 class Level {
     /**
      * Canvas width
@@ -13,14 +19,14 @@ class Level {
 
     /**
      * Pixel tiles
-     * @type {Number[]}
+     * @type {Tile[]}
      */
     tiles;
 
     /**
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
-     * @param {Number[]} tiles - Pixel tiles 
+     * @param {Tile[]} tiles - Pixel tiles 
      */
     constructor(width, height, tiles) {
         this.width = width;
@@ -51,7 +57,12 @@ class Level {
                 break;
             }
 
-            tiles.push(pointer);
+            const cur_pos = reader.relToStart(reader.cursor);
+            reader.seek(pointer);
+            const tile = await Tile.from_bytes(reader, version);
+            reader.seek(cur_pos);
+
+            tiles.push(tile);
         }
 
         return new this(width, height, tiles);
