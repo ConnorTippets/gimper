@@ -18,6 +18,15 @@ class Reader {
         this.r = r;
         this.cursor = 0;
     }
+
+    /**
+     * Get a uint32 and advance 4 bytes
+     * @returns {Number} Parsed uint32
+     */
+    getUint32AndAdvance() {
+        this.cursor += 4;
+        return this.r.getUint32(this.cursor - 4);
+    }
 }
 
 class XCF {
@@ -91,17 +100,14 @@ class XCF {
             version = parseInt(raw_ver.slice(1));
         }
 
-        const width = reader.r.getUint32();
-        const height = reader.r.getUint32(reader.cursor + 4);
-        reader.cursor += 8;
+        const width = reader.getUint32AndAdvance();
+        const height = reader.getUint32AndAdvance();
 
-        const color_mode = reader.r.getUint32(reader.cursor);
-        reader.cursor += 4;
+        const color_mode = reader.getUint32AndAdvance();
 
         let precision;
         if (version >= 4) {
-            precision = reader.r.getUint32(reader.cursor);
-            reader.cursor += 4;
+            precision = reader.getUint32AndAdvance();
         }
 
         return new this(version, width, height, color_mode, precision);
