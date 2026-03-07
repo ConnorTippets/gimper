@@ -19,19 +19,19 @@ class Level {
 
     /**
      * Pixel tiles
-     * @type {Tile[]}
+     * @type {Number}
      */
-    tiles;
+    tilePtrs;
 
     /**
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
-     * @param {Tile[]} tiles - Pixel tiles 
+     * @param {Number} tiles - Pixel tiles 
      */
     constructor(width, height, tiles) {
         this.width = width;
         this.height = height;
-        this.tiles = tiles;
+        this.tilePtrs = tiles;
     }
 
     /**
@@ -57,12 +57,7 @@ class Level {
                 break;
             }
 
-            const cur_pos = reader.relToStart(reader.cursor);
-            reader.seek(pointer);
-            const tile = await Tile.from_bytes(reader, version);
-            reader.seek(cur_pos);
-
-            tiles.push(tile);
+            tiles.push(pointer);
         }
 
         return new this(width, height, tiles);
@@ -522,6 +517,12 @@ class XCF {
             reader.seek(pointer);
             const layer = await Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
+
+            for (tilePtr of layer.hierarchy.level.tilePtrs) {
+                reader.seek(pointer);
+                const tile = await Tile.from_bytes(reader);
+                reader.seek(cur_pos);
+            }
 
             layers.push(layer);
         }
