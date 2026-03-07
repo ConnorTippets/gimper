@@ -279,6 +279,12 @@ class Property {
      */
     type;
 
+    /** 
+     * Specific property data
+     * @type {Object}
+     */
+    data;
+
     /**
      * Underlying data
      * @type {ArrayBuffer}
@@ -288,10 +294,25 @@ class Property {
     /**
      * @param {Number} type - Specific property type
      * @param {ArrayBuffer} bytes - Underlying data
+     * @param {Object} data - Specific property data
      */
-    constructor(type, bytes) {
+    constructor(type, bytes, data) {
         this.type = type;
         this.bytes = bytes;
+        this.data = data;
+    }
+
+    /**
+     * @param {Number} type - Specific property type
+     * @param {ArrayBuffer} bytes - Underlying data
+     */
+    static async from_bytes(type, bytes) {
+        switch (type) {
+            case 17: // PROP_COMPRESSION
+                return new this(type, bytes, { compression: (new DataView(bytes)).getUint8() });
+            default:
+                return new this(type, bytes, {});
+        }
     }
 }
 
@@ -497,7 +518,7 @@ class XCF {
             }
 
             const data = reader.getArbitraryBytesAsBufferAndAdvance(length);
-            properties.push(new Property(type, data));
+            properties.push(await Property.from_bytes(type, data));
         };
 
         let layers = [];
