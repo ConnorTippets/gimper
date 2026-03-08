@@ -77,20 +77,26 @@ class Level {
     height;
 
     /**
-     * Pixel tiles
-     * @type {Number}
+     * Pixel tile pointers
+     * @type {Number[]}
      */
     tilePtrs;
 
     /**
+     * Pixel tiles
+     * @type {Tile[]}
+     */
+    tiles;
+
+    /**
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
-     * @param {Number} tiles - Pixel tiles 
+     * @param {Number[]} tilePtrs - Pixel tile pointers
      */
-    constructor(width, height, tiles) {
+    constructor(width, height, tilePtrs) {
         this.width = width;
         this.height = height;
-        this.tilePtrs = tiles;
+        this.tilePtrs = tilePtrs;
     }
 
     /**
@@ -610,10 +616,13 @@ class XCF {
             const layer = await Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
 
+            layer.hierarchy.level.tilePtrs = [];
             for (const tilePtr of layer.hierarchy.level.tilePtrs) {
                 reader.seek(tilePtr);
                 const tile = await Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp);
                 reader.seek(cur_pos);
+
+                layer.hierarchy.level.tilePtrs.push(tile);
             }
 
             layers.push(layer);
@@ -623,10 +632,4 @@ class XCF {
     };
 }
 
-class XCFConverter {
-    static async to_png(bytes) {
-        console.log((await XCF.from_bytes(bytes)).layers[0].hierarchy);
-    };
-}
-
-export default XCFConverter;
+export default XCF;
