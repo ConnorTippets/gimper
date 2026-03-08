@@ -38,7 +38,7 @@ class Tile {
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
      * @param {Number} index - Tile index in layer
-     * @returns {Tile} Parsed tile
+     * @returns {Promise<Tile>} Parsed tile
      */
     static async from_bytes(reader, compression_type, bpp, cols, rows, width, height, index) {
         let tile_width = 64;
@@ -134,7 +134,7 @@ class Level {
      * Read level from bytes
      * @param {Reader} reader - Reader seeked to beginning of level
      * @param {Number} version - XCF version for pointers
-     * @returns {Level} - Parsed level
+     * @returns {Promise<Level>} - Parsed level
      */
     static async from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
@@ -202,7 +202,7 @@ class PixelHierarchy {
      * Read hierarchy from bytes
      * @param {Reader} reader - Reader seeked to beginning of hierarchy
      * @param {Number} version - XCF version for pointers
-     * @returns {PixelHierarchy} - Parsed hierarchy
+     * @returns {Promise<PixelHierarchy>} - Parsed hierarchy
      */
     static async from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
@@ -312,7 +312,7 @@ class Layer {
      * Read layer from bytes
      * @param {Reader} reader - Reader seeked to beginning of layer
      * @param {Number} version - XCF version for pointers
-     * @returns {Layer} - Parsed layer
+     * @returns {Promise<Layer>} - Parsed layer
      */
     static async from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
@@ -400,7 +400,7 @@ class Property {
 
     /**
      * @param {Number} type - Specific property type
-     * @param {ArrayBuffer} bytes - Underlying data
+     * @param {Promise<ArrayBuffer>} bytes - Underlying data
      */
     static async from_bytes(type, bytes) {
         switch (type) {
@@ -580,7 +580,7 @@ class XCF {
     /**
      * Get entire pixel data of layer
      * @param {Number} index - Layer index
-     * @return {Number[][][]} Pixel data
+     * @return {Promise<Number[][][]>} Pixel data
      */
     async getLayerPixels(index) {
         const layer = this.layers[index];
@@ -615,7 +615,7 @@ class XCF {
     /**
      * Read .xcf from bytes
      * @param {Uint8Array} bytes - Bytes to read
-     * @returns {XCF} - Parsed XCF
+     * @returns {Promise<XCF>} - Parsed XCF
      */
     static async from_bytes(bytes) {
         const reader = new Reader(new DataView(bytes.buffer, 14)); // +1 to skip extra 0
