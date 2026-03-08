@@ -1,5 +1,18 @@
 class Tile {
     /**
+     * Raw pixel data
+     * @type {Number[][]}
+     */
+    data;
+
+    /**
+     * @param {Number[][]} data - Raw pixel data
+     */
+    constructor(data) {
+        this.data = data;
+    }
+
+    /**
      * Read tile from bytes
      * @param {Reader} reader - Reader seeked to beginning of tile
      * @param {Number} compression_type - XCF pixel compression type
@@ -44,8 +57,7 @@ class Tile {
 
                 const pixel_data = concatenated_byte_arrays[0].map((_, colIndex) => concatenated_byte_arrays.map(row => row[colIndex]));
 
-                console.log(pixel_data);
-                return;
+                return new this(pixel_data);
             default: throw Error("Unrecognized compression type");
         }
     }
