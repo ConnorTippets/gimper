@@ -6,10 +6,26 @@ class Tile {
     data;
 
     /**
-     * @param {Number[][]} data - Raw pixel data
+     * Tile width
+     * @type {Number}
      */
-    constructor(data) {
+    width;
+
+    /**
+     * Tile height
+     * @type {Number}
+     */
+    height;
+
+    /**
+     * @param {Number[][]} data - Raw pixel data
+     * @param {Number} width - Tile width
+     * @param {Number} height - Tile height
+     */
+    constructor(data, width, height) {
         this.data = data;
+        this.width = width;
+        this.height = height;
     }
 
     /**
@@ -17,15 +33,30 @@ class Tile {
      * @param {Reader} reader - Reader seeked to beginning of tile
      * @param {Number} compression_type - XCF pixel compression type
      * @param {Number} bpp - XCF pixel bytes per pixel
+     * @param {Number} cols - Amount of tile columns
+     * @param {Number} rows - Amount of tile rows
+     * @param {Number} width - Canvas width
+     * @param {Number} height - Canvas height
+     * @param {Number} index - Tile index in layer
      * @returns {Tile} Parsed tile
      */
-    static async from_bytes(reader, compression_type, bpp) {
+    static async from_bytes(reader, compression_type, bpp, cols, rows, width, height, index) {
+        let tile_width = 64;
+        let tile_height = 64;
+        if ((index % cols) === (cols - 1)) { // On righthand tile
+            tile_width = width % 64;
+        }
+        if (Math.floor(index / cols) >= (rows - 1)) { // On bottom tile
+            tile_height = height % 64;
+        }
+        const total_pixels = tile_width * tile_height;
+
         switch (compression_type) {
             case 1:
                 let concatenated_byte_arrays = [];
                 for (let byte = 0; byte < bpp; byte++) {
                     let bytes_data = new Uint8Array();
-                    while (bytes_data.length < 4096) {
+                    while (bytes_data.length < total_pixels) {
                         let n = reader.getUint8AndAdvance();
 
                         let data;
@@ -51,13 +82,17 @@ class Tile {
                         temp_arr.set(bytes_data);
                         temp_arr.set(data, bytes_data.length);
                         bytes_data = temp_arr;
+
+                        // if (debug) {
+                        //     console.log(bytes_data.length);
+                        // }
                     }
                     concatenated_byte_arrays.push(Array.from(bytes_data));
                 }
 
                 const pixel_data = concatenated_byte_arrays[0].map((_, colIndex) => concatenated_byte_arrays.map(row => row[colIndex]));
 
-                return new this(pixel_data);
+                return new this(pixel_data, tile_width, tile_height);
             default: throw Error("Unrecognized compression type");
         }
     }
@@ -546,6 +581,39 @@ class XCF {
         this.layers = layers;
     };
 
+    /**
+     * Get entire pixel data of layer
+     * @param {Number} index - Layer index
+     * @return {Number[][][]} Pixel data
+     */
+    async getLayerPixels(index) {
+        const layer = this.layers[index];
+        const tiles_per_row = Math.ceil(layer.width / 64);
+
+        const pixel_data = new Array(layer.height);
+        for (let r = 0; r < layer.height; r++) {
+            pixel_data[r] = new Array(layer.width);
+        }
+
+        let tile_index = 0;
+        for (const tile of layer.hierarchy.level.tiles) {
+            const tile_col = (tile_index % tiles_per_row) * 64;
+            const tile_row = Math.floor(tile_index / tiles_per_row) * 64;
+
+            let i = 0;
+            for (let row = 0; row < tile.height; row++) {
+                const destRow = tile_row + row;
+                for (let col = 0; col < tile.width; col++) {
+                    pixel_data[destRow][tile_col + col] = tile.data[i++];
+                }
+            }
+
+            tile_index++;
+        }
+
+        return pixel_data;
+    }
+
     static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
 
     /**
@@ -616,13 +684,18 @@ class XCF {
             const layer = await Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
 
-            layer.hierarchy.level.tilePtrs = [];
+            const tile_cols = Math.ceil(layer.width / 64);
+            const tile_rows = Math.ceil(layer.height / 64);
+
+            layer.hierarchy.level.tiles = [];
+            let i = 0;
             for (const tilePtr of layer.hierarchy.level.tilePtrs) {
                 reader.seek(tilePtr);
-                const tile = await Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp);
+                const tile = await Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp, tile_cols, tile_rows, layer.width, layer.height, i);
                 reader.seek(cur_pos);
 
-                layer.hierarchy.level.tilePtrs.push(tile);
+                layer.hierarchy.level.tiles.push(tile);
+                i++;
             }
 
             layers.push(layer);
