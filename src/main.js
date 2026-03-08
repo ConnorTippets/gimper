@@ -82,10 +82,6 @@ class Tile {
                         temp_arr.set(bytes_data);
                         temp_arr.set(data, bytes_data.length);
                         bytes_data = temp_arr;
-
-                        // if (debug) {
-                        //     console.log(bytes_data.length);
-                        // }
                     }
                     concatenated_byte_arrays.push(Array.from(bytes_data));
                 }
