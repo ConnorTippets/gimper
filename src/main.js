@@ -1,6 +1,53 @@
 class Tile {
-    static async from_bytes() {
-        // TODO: Implement
+    /**
+     * Read tile from bytes
+     * @param {Reader} reader - Reader seeked to beginning of tile
+     * @param {Number} compression_type - XCF pixel compression type
+     * @param {Number} bpp - XCF pixel bytes per pixel
+     * @returns {Tile} Parsed tile
+     */
+    static async from_bytes(reader, compression_type, bpp) {
+        switch (compression_type) {
+            case 1:
+                let concatenated_byte_arrays = [];
+                for (let byte = 0; byte < bpp; byte++) {
+                    let bytes_data = new Uint8Array();
+                    while (bytes_data.length < 4096) {
+                        let n = reader.getUint8AndAdvance();
+
+                        let data;
+                        if (0 <= n && n < 127) {
+                            data = new Uint8Array(Array(n + 1).fill(reader.getUint8AndAdvance()));
+                        } else if (n === 127) {
+                            const p = reader.getUint8AndAdvance();
+                            const q = reader.getUint8AndAdvance();
+                            const amt = p * 256 + q;
+                            data = new Uint8Array(Array(amt).fill(reader.getUint8AndAdvance()));
+                        } else if (n === 128) {
+                            const p = reader.getUint8AndAdvance();
+                            const q = reader.getUint8AndAdvance();
+                            const amt = p * 256 + q;
+                            data = new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(amt));
+                        } else if (128 < n && n < 256) {
+                            data = new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(256 - n));
+                        } else {
+                            throw Error("8-bit value is not 8-bit. How are you seeing this.");
+                        }
+
+                        let temp_arr = new Uint8Array(bytes_data.length + data.length);
+                        temp_arr.set(bytes_data);
+                        temp_arr.set(data, bytes_data.length);
+                        bytes_data = temp_arr;
+                    }
+                    concatenated_byte_arrays.push(Array.from(bytes_data));
+                }
+
+                const pixel_data = concatenated_byte_arrays[0].map((_, colIndex) => concatenated_byte_arrays.map(row => row[colIndex]));
+
+                console.log(pixel_data);
+                return;
+            default: throw Error("Unrecognized compression type");
+        }
     }
 }
 
@@ -78,7 +125,7 @@ class PixelHierarchy {
     height;
 
     /**
-     * Bits per pixel
+     * Bytes per pixel
      * @type {Number}
      */
     bpp;
@@ -92,7 +139,7 @@ class PixelHierarchy {
     /**
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
-     * @param {Number} bpp - Bits per pixel
+     * @param {Number} bpp - Bytes per pixel
      * @param {Level} level - Level structure
      */
     constructor(width, height, bpp, level) {
@@ -361,6 +408,15 @@ class Reader {
     }
 
     /**
+     * Get a uint8 and advance 1 byte
+     * @returns {Number} Parsed uint8
+     */
+    getUint8AndAdvance() {
+        this.cursor += 1;
+        return this.r.getUint8(this.cursor - 1);
+    }
+
+    /**
      * Get a uint32 and advance 4 bytes
      * @returns {Number} Parsed uint32
      */
@@ -521,6 +577,9 @@ class XCF {
             properties.push(await Property.from_bytes(type, data));
         };
 
+        const compression_prop = properties.filter((x) => { return x.type === 17; })[0];
+        const compression_type = compression_prop.data.compression;
+
         let layers = [];
         while (true) {
             let pointer;
@@ -539,9 +598,9 @@ class XCF {
             const layer = await Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
 
-            for (tilePtr of layer.hierarchy.level.tilePtrs) {
-                reader.seek(pointer);
-                const tile = await Tile.from_bytes(reader);
+            for (const tilePtr of layer.hierarchy.level.tilePtrs) {
+                reader.seek(tilePtr);
+                const tile = await Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp);
                 reader.seek(cur_pos);
             }
 
