@@ -610,7 +610,7 @@ class XCF {
         return pixel_data;
     }
 
-    static header = Buffer.from(new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]));
+    static header = new Uint8Array([103, 105, 109, 112, 32, 120, 99, 102, 32]);
 
     /**
      * Read .xcf from bytes
@@ -622,7 +622,7 @@ class XCF {
 
         // All .xcf's start with "gimp xcf "
         const header = bytes.slice(0, 9);
-        if (header.compare(XCF.header) !== 0) {
+        if (!Uint8ArrayIsEqual(header, XCF.header)) {
             throw Error("Invalid XCF");
         }
 
@@ -699,6 +699,24 @@ class XCF {
 
         return new this(version, width, height, color_mode, precision, properties, layers);
     };
+}
+
+/**
+ * Compare two Uint8Array's
+ * @param {Uint8Array} a 
+ * @param {Uint8Array} b
+ * @return {Boolean} 
+ */
+function Uint8ArrayIsEqual(a, b) {
+    if (a.length !== b.length) {
+        return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 export default XCF;
