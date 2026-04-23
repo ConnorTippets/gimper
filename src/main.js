@@ -53,40 +53,47 @@ class Tile {
 
         switch (compression_type) {
             case 1:
-                let concatenated_byte_arrays = [];
+                let concatenated_byte_arrays = new Array(bpp);
                 for (let byte = 0; byte < bpp; byte++) {
-                    let bytes_data = new Uint8Array();
+                    let bytes_data = new Uint8Array(total_pixels);
+                    let write_pos = 0;
                     while (bytes_data.length < total_pixels) {
                         let n = reader.getUint8AndAdvance();
 
                         let data;
                         if (0 <= n && n < 127) {
-                            data = new Uint8Array(Array(n + 1).fill(reader.getUint8AndAdvance()));
+                            bytes_data.fill(reader.getUint8AndAdvance(), write_pos, write_pos + n + 1);
+                            write_pos += n + 1;
                         } else if (n === 127) {
                             const p = reader.getUint8AndAdvance();
                             const q = reader.getUint8AndAdvance();
                             const amt = p * 256 + q;
-                            data = new Uint8Array(Array(amt).fill(reader.getUint8AndAdvance()));
+                            bytes_data.fill(reader.getUint8AndAdvance(), write_pos, write_pos + amt);
+                            write_pos += amt;
                         } else if (n === 128) {
                             const p = reader.getUint8AndAdvance();
                             const q = reader.getUint8AndAdvance();
                             const amt = p * 256 + q;
-                            data = new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(amt));
+                            bytes_data.set(new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(amt)), write_pos);
+                            write_pos += amt;
                         } else if (128 < n && n < 256) {
-                            data = new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(256 - n));
+                            const amt = 256 - n;
+                            bytes_data.set(new Uint8Array(reader.getArbitraryBytesAsBufferAndAdvance(amt)), amt);
+                            write_pos += amt;
                         } else {
                             throw Error("8-bit value is not 8-bit. How are you seeing this.");
                         }
-
-                        let temp_arr = new Uint8Array(bytes_data.length + data.length);
-                        temp_arr.set(bytes_data);
-                        temp_arr.set(data, bytes_data.length);
-                        bytes_data = temp_arr;
                     }
-                    concatenated_byte_arrays.push(Array.from(bytes_data));
+                    concatenated_byte_arrays[byte] = bytes_data;
                 }
 
-                const pixel_data = concatenated_byte_arrays[0].map((_, colIndex) => concatenated_byte_arrays.map(row => row[colIndex]));
+                //const pixel_data = concatenated_byte_arrays[0].map((_, colIndex) => concatenated_byte_arrays.map(row => row[colIndex]));
+                const pixel_data = new Uint8Array(total_pixels * bpp);
+                for (let px = 0; px < total_pixels; px++) {
+                    for (let ch = 0; ch < bpp; ch++) {
+                        pixel_data[px * bpp + ch] = concatenated_byte_arrays[ch][px];
+                    }
+                }
 
                 return new this(pixel_data, tile_width, tile_height);
             default: throw Error("Unrecognized compression type");
