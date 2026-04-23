@@ -38,9 +38,9 @@ class Tile {
      * @param {Number} width - Canvas width
      * @param {Number} height - Canvas height
      * @param {Number} index - Tile index in layer
-     * @returns {Promise<Tile>} Parsed tile
+     * @returns {Tile} Parsed tile
      */
-    static async from_bytes(reader, compression_type, bpp, cols, rows, width, height, index) {
+    static from_bytes(reader, compression_type, bpp, cols, rows, width, height, index) {
         let tile_width = 64;
         let tile_height = 64;
         if ((index % cols) === (cols - 1)) { // On righthand tile
@@ -134,9 +134,9 @@ class Level {
      * Read level from bytes
      * @param {Reader} reader - Reader seeked to beginning of level
      * @param {Number} version - XCF version for pointers
-     * @returns {Promise<Level>} - Parsed level
+     * @returns {Level} - Parsed level
      */
-    static async from_bytes(reader, version) {
+    static from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
         const height = reader.getUint32AndAdvance();
 
@@ -202,9 +202,9 @@ class PixelHierarchy {
      * Read hierarchy from bytes
      * @param {Reader} reader - Reader seeked to beginning of hierarchy
      * @param {Number} version - XCF version for pointers
-     * @returns {Promise<PixelHierarchy>} - Parsed hierarchy
+     * @returns {PixelHierarchy} - Parsed hierarchy
      */
-    static async from_bytes(reader, version) {
+    static from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
         const height = reader.getUint32AndAdvance();
         const bpp = reader.getUint32AndAdvance();
@@ -218,7 +218,7 @@ class PixelHierarchy {
 
         const cur_pos = reader.relToStart(reader.cursor);
         reader.seek(lptr);
-        const level = await Level.from_bytes(reader, version);
+        const level = Level.from_bytes(reader, version);
         reader.seek(cur_pos);
 
         while (true) {
@@ -312,9 +312,9 @@ class Layer {
      * Read layer from bytes
      * @param {Reader} reader - Reader seeked to beginning of layer
      * @param {Number} version - XCF version for pointers
-     * @returns {Promise<Layer>} - Parsed layer
+     * @returns {Layer} - Parsed layer
      */
-    static async from_bytes(reader, version) {
+    static from_bytes(reader, version) {
         const width = reader.getUint32AndAdvance();
         const height = reader.getUint32AndAdvance();
         const type = reader.getUint32AndAdvance();
@@ -345,7 +345,7 @@ class Layer {
 
         const cur_pos = reader.relToStart(reader.cursor);
         reader.seek(hptr);
-        const hierarchy = await PixelHierarchy.from_bytes(reader, version);
+        const hierarchy = PixelHierarchy.from_bytes(reader, version);
         reader.seek(cur_pos);
 
         let effects = [];
@@ -400,9 +400,9 @@ class Property {
 
     /**
      * @param {Number} type - Specific property type
-     * @param {Promise<ArrayBuffer>} bytes - Underlying data
+     * @param {ArrayBuffer} bytes - Underlying data
      */
-    static async from_bytes(type, bytes) {
+    static from_bytes(type, bytes) {
         switch (type) {
             case 17: // PROP_COMPRESSION
                 return new this(type, bytes, { compression: (new DataView(bytes)).getUint8() });
@@ -580,9 +580,9 @@ class XCF {
     /**
      * Get entire pixel data of layer
      * @param {Number} index - Layer index
-     * @return {Promise<Number[][][]>} Pixel data
+     * @return {Number[][][]} Pixel data
      */
-    async getLayerPixels(index) {
+    getLayerPixels(index) {
         const layer = this.layers[index];
         const tiles_per_row = Math.ceil(layer.width / 64);
 
@@ -615,9 +615,9 @@ class XCF {
     /**
      * Read .xcf from bytes
      * @param {Uint8Array} bytes - Bytes to read
-     * @returns {Promise<XCF>} - Parsed XCF
+     * @returns {XCF} - Parsed XCF
      */
-    static async from_bytes(bytes) {
+    static from_bytes(bytes) {
         const reader = new Reader(new DataView(bytes.buffer, 14)); // +1 to skip extra 0
 
         // All .xcf's start with "gimp xcf "
@@ -656,7 +656,7 @@ class XCF {
             }
 
             const data = reader.getArbitraryBytesAsBufferAndAdvance(length);
-            properties.push(await Property.from_bytes(type, data));
+            properties.push(Property.from_bytes(type, data));
         };
 
         const compression_prop = properties.filter((x) => { return x.type === 17; })[0];
@@ -677,7 +677,7 @@ class XCF {
 
             const cur_pos = reader.relToStart(reader.cursor);
             reader.seek(pointer);
-            const layer = await Layer.from_bytes(reader, version);
+            const layer = Layer.from_bytes(reader, version);
             reader.seek(cur_pos);
 
             const tile_cols = Math.ceil(layer.width / 64);
@@ -687,7 +687,7 @@ class XCF {
             let i = 0;
             for (const tilePtr of layer.hierarchy.level.tilePtrs) {
                 reader.seek(tilePtr);
-                const tile = await Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp, tile_cols, tile_rows, layer.width, layer.height, i);
+                const tile = Tile.from_bytes(reader, compression_type, layer.hierarchy.bpp, tile_cols, tile_rows, layer.width, layer.height, i);
                 reader.seek(cur_pos);
 
                 layer.hierarchy.level.tiles.push(tile);
